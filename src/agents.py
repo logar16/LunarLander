@@ -69,7 +69,7 @@ class DQNAgent:
         model = ModelBuilder.build(num_inputs=self.num_inputs, num_actions=self.num_actions)
         self.set_model(model)
 
-    def train(self, env: gym.Env, episodes: int, callback: Callable = None):
+    def train(self, env: gym.Env, episodes: int, callback: Callable = None, verbose: bool = False):
         """
         Use for training the model.  See `self.run()` for evaluation
         """
@@ -105,15 +105,18 @@ class DQNAgent:
                 # Update the target to reflect knowledge
                 if step % self.update_target_freq == 0:
                     self.target_model = deepcopy(self.active_model)
-                    # TODO: Verbose print
+                    if verbose: print(f'\nCopying Active to Target on step {step}')
 
             if self.memory.ready():
                 self.experience_replay()
 
-            if i % percent == 0:
+            if i > 0 and i % percent == 0:
                 if callback:
-                    data = {'percent': (i / percent), 'stats': self.memory.get_statistics(),
-                            'rar': self.random_action_rate}
+                    data = {
+                        'percent': (i // percent),
+                        'stats': self.memory.get_statistics(),
+                        'rar': self.random_action_rate
+                    }
                     callback(self, data)
 
         return self.memory.get_statistics()

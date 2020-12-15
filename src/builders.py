@@ -19,7 +19,7 @@ class AgentBuilder:
         self.target_updates = [80000, 100000, 125000, 150000]
         self.gammas = [0.9992, 0.9995, 0.9998]
         self.learning_rates = [0.0001, 0.0002, 0.0005, 0.001, 0.0015]
-        self.optim_types = [optim.Adam, optim.Adagrad, optim.Adadelta, optim.ASGD, optim.SGD]
+        self.optim_types = [optim.Adam, optim.Adagrad, optim.Adadelta]  #, optim.ASGD, optim.SGD
         self.features = ['gammas', 'rars', 'rar_decays', 'memories', 'minibatch_sizes',
                          'replay_freqs', 'target_updates', 'optim_type', 'optim_args']
 
@@ -136,13 +136,13 @@ class ModelBuilder:
         :param num_inputs: Number of inputs to expect on the first layer
         :param units: A list of units to be used in each layer.
         :type units: list
-        :param lr: Learning Rate
         :return Module: A new  model
         """
         # TODO: CUDA
         layers = [nn.Linear(num_inputs, units[0]), nn.ReLU()]
         if units[1]:
             layers.append(nn.Linear(units[0], units[1]))
+            layers.append(nn.ReLU())
 
         layers.append(nn.Linear(units[-1], num_actions))
         model = nn.Sequential(*layers)
