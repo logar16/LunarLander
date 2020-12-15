@@ -2,6 +2,7 @@ from collections import deque
 
 import numpy as np
 
+
 class ExperienceBuffer:
     """Stores a lot of data to help with experience replay.  Also can be handy for saving stats"""
 
@@ -21,10 +22,9 @@ class ExperienceBuffer:
         self.terminations = np.ndarray(total_size, dtype=np.bool)
         self.episodic_memory = EpisodicMemory()
 
-
     def add(self, start, action, reward, next_state, done):
         """Add an experience for future use"""
-        i = self.length % self.size     # Overwrite older entries once you run out of room
+        i = self.length % self.size  # Overwrite older entries once you run out of room
         self.start_states[i] = start
         self.actions[i] = action
         self.rewards[i] = reward
@@ -53,14 +53,12 @@ class ExperienceBuffer:
         terminations = self.terminations[indexes]
         return starts, actions, rewards, nexts, terminations
 
-
     def get_statistics(self):
         return self.episodic_memory.statistics(cumulative=True)
 
-
     def fake_experiences(self, iterations):
         state = np.arange(self.num_input)
-        for i in xrange(iterations):
+        for i in range(iterations):
             next_state = np.random.choice(10, self.num_input)
             action = np.random.randint(4)
             reward = np.random.random()
@@ -68,10 +66,9 @@ class ExperienceBuffer:
             self.add(state, action, reward, next_state, done)
 
 
-
-
 class EpisodicMemory:
     """Keeps track of rewards (and potentially other stats) over an episode (as well as keeping some overall stats)."""
+
     def __init__(self):
         self.step = 0
         self.num_episodes = 0
