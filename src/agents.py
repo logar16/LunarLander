@@ -2,9 +2,10 @@ from collections import deque
 
 import torch
 import torch.nn as nn
+import torch.optim as optim
 
 import gym
-import typing
+from typing import Type, Callable
 
 from memory import ExperienceBuffer
 import numpy as np
@@ -18,7 +19,9 @@ class DQNAgent:
                  rar=1.1, rar_decay=0.999997,
                  memory_size=120000, minibatch_size=100,
                  replay_freq=40, target_update=100000,
-                 config=None, num_inputs=8, num_actions=4):
+                 config: dict = None, num_inputs=8, num_actions=4,
+                 optim_type=Type[optim.Optimizer], optim_args={},
+                 criterion=nn.SmoothL1Loss()):
         """
         :param gamma: Discount factor for Bellman update
         :param rar: Random action rate (RAR)
@@ -41,7 +44,13 @@ class DQNAgent:
         # How many iterations between copying the active model to the target model
         self.update_target_freq = target_update
 
-        self.active_model = self.target_model = None
+        self.active_model: nn.Module = None
+        self.target_model: nn.Module = None
+        self.optimizer: optim.Optimizer = None
+        self.optim_type: Type[optim.Optimizer] = optim_type
+        self.optim_args: dict = optim_args
+        self.criterion: nn.Module = criterion
+
         self.end_early = False
         self.total_episodes = 1000
 
@@ -51,6 +60,7 @@ class DQNAgent:
         Will set the model to be active model, and a copy of it to be the target model.
         """
         self.active_model = model
+        self.optimizer = self.optim_type(model.parameters(), **self.optim_args)
         # copy active model to begin
         self.target_model = deepcopy(model)
         # TODO: DDQN?
@@ -59,7 +69,10 @@ class DQNAgent:
         model = ModelBuilder.build(num_inputs=self.num_inputs, num_actions=self.num_actions)
         self.set_model(model)
 
-    def train(self, env: gym.Env, episodes: int, callback: typing.Callable = None):
+    def train(self, env: gym.Env, episodes: int, callback: Callable = None):
+        """
+        Use for training the model.  See `self.run()` for evaluation
+        """
         if not self.active_model:
             self.create_model()
         self.total_episodes = episodes
@@ -136,10 +149,10 @@ class DQNAgent:
                 state = np.asarray(next_state)
                 total += reward
                 if verbose:
-                    print("Action:", action, "  Reward:", round(reward, 3), "  Total:", round(total, 4))
+                    print(f"Action: {action}, Reward: {round(reward, 3)}, Total: {round(total, 4)}")
 
             rewards.append(total)
-            print(i, " Final Reward:", total)
+            print(f"{i} Final Reward: {total}")
         rewards = np.asarray(rewards)
         print("Average Reward:", rewards.mean())
         print("Standard Dev:", rewards.std())
@@ -153,14 +166,23 @@ class DQNAgent:
                 self.random_action_rate *= self.rar_decay
             if np.random.random() < self.random_action_rate:
                 return np.random.randint(self.num_actions)  # Pick a random action
-        state = np.asarray(state).reshape(1, self.num_inputs)
-        actions = self.active_model.predict(state)
-        return np.argmax(actions)
+        state = torch.tensor(state).reshape(1, self.num_inputs)
+        actions = self.active_model(state)
+        return torch.argmax(actions).item()
 
     def experience_replay(self):
-        """Train the model using experience replay (take minibatches from the replay memory)"""
+        """
+        Train the model using experience replay (take minibatches from the replay memory)
+        """
         prev_states, actions, rewards, next_states, terminates = self.memory.sample()
         size = actions.size
+
+        # Convert to Torch Tensors
+        prev_states = torch.tensor(prev_states, dtype=torch.float, requires_grad=False)
+        actions = torch.tensor(actions, requires_grad=False)
+        rewards = torch.tensor(rewards, dtype=torch.float, requires_grad=False)
+        terminates = torch.tensor(terminates, requires_grad=False)
+        next_states = torch.tensor(next_states, dtype=torch.float, requires_grad=False)
 
         # DDQN
         # if np.random.randint(2):
@@ -171,17 +193,25 @@ class DQNAgent:
         #     ref_model = self.active_model
 
         # Use self.target_model for the expected future value (since it is more stable)
-        prev_state_value = self.active_model.predict(prev_states)
-        next_state_value = self.target_model.predict(next_states)
+        prev_state_value = self.active_model(prev_states)
+        next_state_value = self.target_model(next_states)
         # Update terminating transitions to be equal to the reward of ending
         # Update non-termination transitions to be equal to:
         #   the reward + discounted expected return for next best action (Bellman update)
-        # Termination is the distinguishing faction
-        non_terminal_values = ~terminates * self.gamma * next_state_value.max(axis=1)
-        updated_value = prev_state_value.copy()
-        updated_value[np.arange(size), actions] = rewards + non_terminal_values
+        # Termination is the distinguishing factor
+        non_terminal_values = ~terminates * self.gamma * next_state_value.max(axis=1).values
+        updated_value = prev_state_value.clone()
+        action_indices = actions.to(dtype=torch.long)
+        updated_value[torch.arange(size), action_indices] = rewards + non_terminal_values
         # Update the model (leave target alone for now)
-        self.active_model.train_on_batch(prev_states, updated_value)
+        self.train_model(prev_states, updated_value)
+
+    def train_model(self, X, y):
+        self.optimizer.zero_grad()
+        output = self.active_model(X)
+        loss = self.criterion(output, y)
+        loss.backward()
+        self.optimizer.step()
 
     def end_training_early(self):
         self.end_early = True

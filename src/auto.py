@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
-from keras.models import Sequential
+
 from builders import RandomAgentBuilder, RandomModelBuilder, SpecificAgentBuilder
 from agents import DQNAgent
 
@@ -18,7 +18,8 @@ class Runner:
         self.episodes = episodes
         num_inputs = env.observation_space.shape[0]
         num_actions = env.action_space.n
-        self.agent_builder = SpecificAgentBuilder(num_inputs, num_actions)
+        # self.agent_builder = SpecificAgentBuilder(num_inputs, num_actions)
+        self.agent_builder = RandomAgentBuilder(num_inputs, num_actions)
         self.model_builder = RandomModelBuilder(num_inputs, num_actions)
         self.verbose = verbose
 
@@ -31,24 +32,24 @@ class Runner:
 
 
     def iterate_all(self):
-        print "Iterating over all conceivable combinations..."
-        print "Done iterating over all conceivable combinations"
+        print("Iterating over all conceivable combinations...")
+        print("Done iterating over all conceivable combinations")
         # for model in self.model_builder:
         #     for agent in self.agent_builder:
         #         agent.model = model
         #         self.run_agent(agent)
 
     def iterate_randomly(self):
-        total = 20
+        total = 50
         # percent = total / 100
-        print "Iterating over {} random samples...".format(total)
+        print("Iterating over {} random samples...".format(total))
         for i in range(total):
             # self.print_complete(i * percent)
             agent = self.agent_builder.next()
             model = self.model_builder.next()
             agent = PerformanceTracker(agent, model, self.verbose)
             self.run_agent(agent)
-        print "Done iterating over {} random samples".format(total)
+        print("Done iterating over {} random samples".format(total))
 
 
     def run_agent(self, agent):
@@ -56,13 +57,6 @@ class Runner:
         self.save_report(agent)
         del agent   # Clean up the memory
         gc.collect()
-
-
-    def print_complete(self, percent):
-        progress = '=' * int(percent)
-        progress += '>'
-        left = ' ' * (100 - percent)
-        print "{}% [{}]".format(percent, progress + left)
 
     def save_report(self, agent):
         """Document the performance of an agent"""
@@ -77,7 +71,7 @@ class Runner:
         plt.xlabel('Episode')
         name = round(rewards[-100:].mean(), 2)
         name = str(name) + '_fig.png'
-        plt.savefig('Files/reward_' + name)
+        plt.savefig('figures/reward_' + name)
 
         plt.clf()
         cumulative = np.cumsum(rewards)
@@ -86,7 +80,7 @@ class Runner:
 
         update_freq = agent.agent_params['target_update']
         steps = np.cumsum(agent.steps)
-        for i in xrange(steps.size):
+        for i in range(steps.size):
             step = steps[i]
             if step > update_freq:
                 steps[i:] -= update_freq
@@ -94,7 +88,7 @@ class Runner:
 
         plt.ylabel('Reward')
         plt.xlabel('Episode')
-        plt.savefig('Files/cumulative_' + name)
+        plt.savefig('figures/cumulative_' + name)
 
     def moving_average(self, array, n=20):
         ret = np.cumsum(array, dtype=float)
@@ -126,15 +120,11 @@ class PerformanceTracker:
         self.agent_params = agent.config
         if agent.active_model:
             model = agent.active_model
-            self.learning_rate = 0.002
         else:
             agent.set_model(model)
-            self.learning_rate = model.learning_rate
 
         self.model = model
-        self.layers = [layer.units for layer in model.layers]
-        self.layers = self.layers[0:2]
-        # learning_rate added by the ModelBuilder
+        self.architecture = str(model)
 
         self.verbose = verbose
         # self.mean_max = np.ndarray((100, 2))  # Covers 0-99%  mean() and max()
@@ -148,19 +138,18 @@ class PerformanceTracker:
     def train(self, env, episodes):
         """Tell the agent to start training.  Will exit early if performance declines too quickly"""
         self.episodes = episodes
-        self.percent_size = episodes / 100
-        print "\n\n**Training Agent**"
+        self.percent_size = episodes // 100
+        print("\n\n**Training Agent**")
         if self.verbose:
-            print "Parameters:", self.agent_params
-            print "Layers:", self.layers
-            print "Learning Rate:", self.learning_rate
+            print("Parameters:", self.agent_params)
+            print("Layers:", self.model)
 
-        print time.strftime('%H:%M:%S')
+        print(time.strftime('%H:%M:%S'))
         start = time.time()
         self.rewards, self.steps = self.agent.train(env, episodes, callback=self.on_progress)
-        print "Completed in {} sec. at {}".format(time.time() - start, time.strftime('%H:%M:%S'))
+        print(f"Completed in {time.time() - start} sec. at {time.strftime('%H:%M:%S')}")
         self.end()
-        print self, "\n\n"
+        print(self, "\n\n")
 
 
     def on_progress(self, agent, data):
@@ -174,20 +163,18 @@ class PerformanceTracker:
         if len(reward) >= 100:
             last100 = reward[-100:]
             if last100.mean() >= 200:
-                print "Successfully completed goal"
+                print("Successfully completed goal")
                 self.success = True
                 self.exit_early = True
                 agent.end_training_early()
 
         if self.verbose and percent % 10 == 0:
-            print "{}% Total reward={}  steps={}  rar={}".format(percent, reward.mean(), steps.sum(), rar)
-        # just look at the last few episodes
-        reward = reward[-self.percent_size:]
-        if self.verbose and percent % 10 == 0:
-            print "\tRecent reward={},  max={}".format(reward.mean(), reward.max())
-        # performance = (reward.mean(), reward.max())
-        # self.mean_max[percent] = performance
-        print percent,
+            print(f"\n{percent}% "
+                  f"\tTotal reward={round(reward.mean(), 3)}  steps={steps.sum()}  rar={round(rar, 3)}")
+            # look at the last few episodes
+            reward = reward[-self.percent_size:]
+            print(f"\t\tRecent reward={round(reward.mean(), 3)},  max={round(reward.max(), 3)}")
+        print(f'{percent}% ... ', end="")
 
 
     def end(self):
@@ -202,20 +189,18 @@ class PerformanceTracker:
             if self.avg >= 200:
                 self.success = True
 
-
         # clear up some space in memory
         del self.agent
         del self.model
 
     def __repr__(self):
-        string = "Layers: {}".format(self.layers)
-        string += "\nLearning Rate: {}".format(self.learning_rate)
-        string += "\nParameters: {}".format(self.agent_params)
-        string += "\nEpisodes: {}".format(self.episodes)
-        string += "\nStandard Dev: {}".format(self.std)
-        string += "\nLast 100 Mean: {}".format(self.avg)
+        string = f"Model: {self.architecture}"
+        string += f"\nParameters: {self.agent_params}"
+        string += f"\nEpisodes: {self.episodes}"
+        string += f"\nStandard Dev: {self.std}"
+        string += f"\nLast 100 Mean: {self.avg}"
         if self.success:
             string += "\n!!!Success!!!"
         if self.exit_early:
-            string+= "\n(Exited Early)"
+            string += "\n(Exited Early)"
         return string

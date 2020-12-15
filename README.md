@@ -12,3 +12,12 @@ and then running the following command:
 pip install -r .\requirements.txt
 ``` 
 
+If installing Box2D (for the gym env) gives you issues and you are on Windows,
+check out [this article](https://medium.com/@sayanmndl21/install-openai-gym-with-box2d-and-mujoco-in-windows-10-e25ee9b5c1d5).
+
+
+## Training
+
+You will need the following directories to be present or errors will be thrown
+* `figures/`
+* `models/` 
