@@ -1,8 +1,16 @@
 from collections import deque
+
+import torch
+import torch.nn as nn
+
+import gym
+import typing
+
 from memory import ExperienceBuffer
 import numpy as np
-from keras.models import load_model, clone_model, Sequential
 from builders import ModelBuilder
+from copy import deepcopy
+
 
 class DQNAgent:
 
@@ -37,33 +45,28 @@ class DQNAgent:
         self.end_early = False
         self.total_episodes = 1000
 
-
-    def set_model(self, model):
+    def set_model(self, model: nn.Module):
         """
-        Give the agent a model to use
-        :type model: Sequential
+        Give the agent a model to use.
+        Will set the model to be active model, and a copy of it to be the target model.
         """
         self.active_model = model
-        # TODO: DDQN?
-        # self.active_model2 = clone_model(model)
-        # self.active_model2.set_weights(model.get_weights())
         # copy active model to begin
-        self.target_model = clone_model(model)
-        self.target_model.set_weights(model.get_weights())
+        self.target_model = deepcopy(model)
+        # TODO: DDQN?
 
     def create_model(self):
         model = ModelBuilder.build(num_inputs=self.num_inputs, num_actions=self.num_actions)
         self.set_model(model)
 
-
-    def train(self, env, episodes, callback=None):
+    def train(self, env: gym.Env, episodes: int, callback: typing.Callable = None):
         if not self.active_model:
             self.create_model()
         self.total_episodes = episodes
         percent = (episodes / 100) or 1
         step = 0
 
-        for i in xrange(episodes):
+        for i in range(episodes):
             if self.end_early:
                 break
             # setup environment and start state
@@ -88,25 +91,23 @@ class DQNAgent:
 
                 # Update the target to reflect knowledge
                 if step % self.update_target_freq == 0:
-                    # print "Updating weights"
-                    self.target_model = clone_model(self.active_model)
-                    self.target_model.set_weights(self.active_model.get_weights())
+                    self.target_model = deepcopy(self.active_model)
+                    # TODO: Verbose print
 
             if self.memory.ready():
                 self.experience_replay()
 
             if i % percent == 0:
                 if callback:
-                    data = {'percent':(i / percent), 'stats':self.memory.get_statistics(),
+                    data = {'percent': (i / percent), 'stats': self.memory.get_statistics(),
                             'rar': self.random_action_rate}
                     callback(self, data)
 
         return self.memory.get_statistics()
 
-
     def run(self, env, episodes, render=False, verbose=False, interactive=False):
         rewards = deque()
-        for i in xrange(episodes):
+        for i in range(episodes):
             # setup environment and start state
             state = env.reset()
             state = np.asarray(state)
@@ -117,11 +118,11 @@ class DQNAgent:
                 if render:
                     env.render()
                     if interactive:
-                        print "State:", state.round(3)
+                        print("State:", state.round(3))
                         if skip > 0:
                             skip -= 1
                         else:
-                            entry = raw_input("(Enter number of frames to skip) ")
+                            entry = input("(Enter number of frames to skip) ")
                             if entry.isalnum():
                                 skip = int(entry)
 
@@ -132,15 +133,14 @@ class DQNAgent:
                 state = np.asarray(next_state)
                 total += reward
                 if verbose:
-                    print "Action:", action, "  Reward:", round(reward, 3), "  Total:", round(total, 4)
+                    print("Action:", action, "  Reward:", round(reward, 3), "  Total:", round(total, 4))
 
             rewards.append(total)
-            print i, " Final Reward:", total
+            print(i, " Final Reward:", total)
         rewards = np.asarray(rewards)
-        print "Average Reward:", rewards.mean()
-        print "Standard Dev:", rewards.std()
+        print("Average Reward:", rewards.mean())
+        print("Standard Dev:", rewards.std())
         return rewards
-
 
     def query(self, state, random_actions=True):
         """Ask the agent what action to take given the state"""
@@ -154,12 +154,12 @@ class DQNAgent:
         actions = self.active_model.predict(state)
         return np.argmax(actions)
 
-
     def experience_replay(self):
         """Train the model using experience replay (take minibatches from the replay memory)"""
         prev_states, actions, rewards, next_states, terminates = self.memory.sample()
         size = actions.size
 
+        # DDQN
         # if np.random.randint(2):
         #     update_model = self.active_model
         #     ref_model = self.active_model2
@@ -186,21 +186,21 @@ class DQNAgent:
     def __repr__(self):
         string = ""
         if self.config:
-            string = "Parameters: {}\n".format(self.config)
-        # string += "Model:\n" + str(self.active_model.summary())
+            string = f"Config: {self.config}\n"
+        # string += f"Model:\n {self.active_model}"
         return string
 
-    def save(self, save_name="", suffix=""):
+    def save(self, save_name='', suffix=''):
         """
         Save the model for later loading
-        https://keras.io/getting-started/faq/#how-can-i-save-a-keras-model
         """
-        filename = "Files/" + save_name + '_' + suffix + '.h5'
-        print "Saving", filename
-        self.active_model.save(filename)
+        filename = f'models/{save_name}_{suffix}.pt'
+        print('Saving', filename)
+        torch.save(self.active_model.state_dict, filename)
 
     def load(self, filename):
         """Load the model and set it as active (and target) model"""
-        print "Loading", filename
-        model = load_model(filename)
-        self.set_model(model)
+        print('Loading', filename)
+        self.create_model()
+        self.active_model.load_state_dict(torch.load(filename))
+        self.set_model(self.active_model)
