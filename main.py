@@ -20,6 +20,7 @@ num_actions = env.action_space.n
 def setup(load_file: str) -> DQNAgent:
     agent = DQNAgent(num_actions=num_actions, num_inputs=num_inputs)
     if load_file:
+        print(f'Loading "{load_file}"...')
         agent.load(load_file)
         agent.random_action_rate = 0.01
         agent.rar_decay = 1.0
@@ -39,12 +40,12 @@ def print_progress(agent, data):
     progress = '=' * int(percent)
     progress += '>'
     left = ' ' * (100 - percent)
-    print("{}% [{}]".format(percent, progress + left))
+    print(f'{percent}% [{progress + left}]')
     reward, steps = data['stats']
     total = round(reward.mean(), 3)
     last100 = round(reward[-100:].mean(), 3)
     steps = steps.sum()
-    print("Total Mean: {},  Last 100 Mean: {},  Steps: {}".format(total, last100, steps))
+    print(f'Total Mean: {total},  Last 100 Mean: {last100},  Steps: {steps}')
 
 
 def moving_average(array, n=20):
@@ -60,7 +61,7 @@ def save_rewards(filename, rewards):
     plt.axhline(200, 0, 1, color='g')
     plt.ylabel('Rewards')
     plt.xlabel('Episode')
-    plt.savefig('Files/' + filename + '.png')
+    plt.savefig(f'figures/{filename}.png')
 
 
 def main(arguments):
@@ -81,17 +82,17 @@ def main(arguments):
     if train:
         print('Training...')
         rewards = agent.train(env, iterations, callback=print_progress)
-        name = 'training{}_{}'.format(iterations, time.strftime('%H-%M-%S'))
+        name = f'training{iterations}_{time.strftime("%H-%M-%S")}'
         save_rewards(name, rewards)
-        print('Running...')
-        rewards = agent.run(env, 100, render, verbose, interactive)
-        name = 'trial{}_{}'.format(iterations, time.strftime('%H-%M-%S'))
+        print('Evaluating...')
+        rewards = agent.evaluate(env, 100, render, verbose, interactive)
+        name = f'trial{iterations}_{time.strftime("%H-%M-%S")}'
         save_rewards(name, rewards)
     elif load_file:
-        print('Loading...')
-        rewards = agent.run(env, iterations, render, verbose, interactive)
-        load_file = load_file[len('Files/'):]  # Remove directory
-        name = load_file + "_trial{}".format(iterations)
+        print('Evaluating...')
+        rewards = agent.evaluate(env, iterations, render, verbose, interactive)
+        load_file = load_file[len('models/'):]  # Remove directory
+        name = f'{load_file}_trial{iterations}'
         save_rewards(name, rewards)
     print("\n\n**DONE**")
 

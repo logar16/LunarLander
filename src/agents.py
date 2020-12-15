@@ -105,7 +105,10 @@ class DQNAgent:
 
         return self.memory.get_statistics()
 
-    def run(self, env, episodes, render=False, verbose=False, interactive=False):
+    def evaluate(self, env: gym.Env, episodes: int, render=False, verbose=False, interactive=False):
+        """
+        Use when testing a pre-trained model. Will not update/train the model.
+        """
         rewards = deque()
         for i in range(episodes):
             # setup environment and start state
