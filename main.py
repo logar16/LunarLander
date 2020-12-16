@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 
 from agents import DQNAgent
 from auto import Runner
+from builders import AgentLoader
 
 
 env = gym.make('LunarLander-v2')
@@ -17,14 +18,18 @@ num_inputs = env.observation_space.shape[0]
 num_actions = env.action_space.n
 
 
-def setup(load_file: str) -> DQNAgent:
-    agent = DQNAgent(num_actions=num_actions, num_inputs=num_inputs)
+def setup(config: str, load_file: str) -> DQNAgent:
+    if config:
+        loader = AgentLoader(config, num_actions=num_actions, num_inputs=num_inputs)
+        agent = loader.load()
+    else:
+        agent = DQNAgent(num_actions=num_actions, num_inputs=num_inputs)
     if load_file:
         print(f'Loading "{load_file}"...')
         agent.load(load_file)
         agent.random_action_rate = 0.01
         agent.rar_decay = 1.0
-        agent.update_target_freq = 100000
+        # agent.update_target_freq = 100000
     return agent
 
 
@@ -51,14 +56,15 @@ def print_progress(agent, data):
 def moving_average(array, n=20):
     ret = np.cumsum(array, dtype=float)
     ret[n:] = ret[n:] - ret[:-n]
-    return ret[n - 1:] / n
+    return ret[(n - 1):] / n
 
 
 def save_rewards(filename, rewards):
     plt.clf()
-    plt.plot(rewards, 'bo')
+    plt.plot(rewards, 'bo', label='Episode Reward')
     plt.plot(moving_average(rewards), 'r', label='Rolling Mean (20)')
     plt.axhline(200, 0, 1, color='g')
+    plt.legend()
     plt.ylabel('Rewards')
     plt.xlabel('Episode')
     plt.savefig(f'figures/{filename}.png')
@@ -67,6 +73,7 @@ def save_rewards(filename, rewards):
 def main(arguments):
     interactive = arguments.interactive
     iterations = arguments.iterations
+    config = arguments.config
     load_file = arguments.load_file
     explore = arguments.explore
     train = arguments.train
@@ -78,12 +85,17 @@ def main(arguments):
         explore_options(iterations, verbose)
         sys.exit()
 
-    agent = setup(load_file)
+    agent = setup(config, load_file)
     if train:
         print('Training...')
-        rewards = agent.train(env, iterations, callback=print_progress)
+        rewards, episode_length = agent.train(env, iterations, callback=print_progress)
         name = f'training{iterations}_{time.strftime("%H-%M-%S")}'
         save_rewards(name, rewards)
+        if config:
+            name = config[config.rfind('/') + 1:]
+        else:
+            name = load_file or f'training_{iterations}'
+        agent.save(name, time.strftime("%H-%M-%S"))
         print('Evaluating...')
         rewards = agent.evaluate(env, 100, render, verbose, interactive)
         name = f'trial{iterations}_{time.strftime("%H-%M-%S")}'
@@ -105,14 +117,14 @@ if __name__ == "__main__":
     # explore
     parser.add_argument('-e', '--explore', help='explore random hyper-parameters',
                         dest='explore', const=True, default=False, action='store_const')
-    # force test
-    # parser.add_argument('-f', '--force', help='Force the training and evaluating of specific setup',
-    #                     dest='force', const=True, default=False, action='store_const')
+    # config file
+    parser.add_argument('-c', '--config', help='Agent is set up with given config file options',
+                        dest='config', type=str)
     # train
-    parser.add_argument('-t', '--train', help='Path to the keras h5 file to load',
+    parser.add_argument('-t', '--train', help='Runs training before evaluation',
                         dest='train', const=True, default=False, action='store_const')
     # load file path
-    parser.add_argument('-l', '--load', help='Path to the keras h5 file to load',
+    parser.add_argument('-l', '--load', help='Path to the PyTorch (.pt) file to load',
                         dest='load_file', type=str)
     # iterations
     parser.add_argument('-i', '--iterations', help='Iterations to run or train for',

@@ -13,7 +13,7 @@ from agents import DQNAgent
 class PerformanceTracker:
     verbose = False
 
-    def __init__(self, agent, model, verbose=False):
+    def __init__(self, agent, model, id_, verbose=False):
         """
         Mostly used for convenience in tracking the stats of an agent
 
@@ -26,6 +26,7 @@ class PerformanceTracker:
             raise TypeError()
 
         self.success = False
+        self.id = id_
         self.agent = agent
         self.agent_params = agent.config
         if agent.active_model:
@@ -70,21 +71,22 @@ class PerformanceTracker:
         After 1% of the total iterations is complete, the agent will call this function
         This is an opportunity to decide if it is time to quit early.
         """
-        percent = data['percent']
+        percent: int = data['percent']
         reward, steps = data['stats']
         rar = data['rar']
 
         if len(reward) >= 100:
             last100 = reward[-100:]
-            mean = last100.mean()
+            mean = np.round(last100.mean())
             if mean >= 200:
                 print("Successfully completed goal")
                 self.success = True
                 self.exit_early = True
                 agent.end_training_early()
             elif mean >= 50 and percent % 5 == 0:
-                print("Good performance found, saving checkpoint")
-                agent.save(f'{int(percent)}', f'{round(mean)}')
+                print("\nGood performance found, saving checkpoint")
+                epoch = int(self.episodes * percent / 100)
+                agent.save(f'{self.id}', f'{epoch}_{mean}')
 
         if self.verbose and percent % 10 == 0:
             # TODO: Print additional info
@@ -175,13 +177,13 @@ class Runner:
     def iterate_randomly(self):
         total = 20
         print(f"Iterating over {total} random samples...")
-        for i in range(total):
-            print(f"\n\n**Training Agent {i + 1}/{total}**")
+        for i in range(1, total + 1):
+            print(f"\n\n**Training Agent {i}/{total}**")
             agent = self.agent_builder.next()
             model = self.model_builder.next()
-            tracked_agent = PerformanceTracker(agent, model, self.verbose)
+            tracked_agent = PerformanceTracker(agent, model, i, self.verbose)
             self.run_agent(tracked_agent)
-            print(f"**Finished Agent {i + 1}/{total}**\n")
+            print(f"**Finished Agent {i}/{total}**\n")
         print(f"Done iterating over {total} random samples")
 
 
@@ -229,19 +231,19 @@ class Runner:
         details += f'{optimizer},'
         # Learning Rate, Other Optimizer Args
         lr = params["optim_args"]["lr"]
-        del params["optim_args"]["lr"]
-        others = params["optim_args"] if len(params["optim_args"]) else "N/A"
-        details += f'{lr},{others}'
-
+        # del params["optim_args"]["lr"]
+        # others = params["optim_args"] if len(params["optim_args"]) else "N/A"
+        details += f'{lr}'  # ,{others}
+        # Append to file
         with open('models/results.csv', 'a') as file:
             file.write(f'{details}\n')
 
-    def save_figures(self, tracked_agent: PerformanceTracker):
+    def save_figures(self, tracker: PerformanceTracker):
         """
         Save figures showing progress of agent
         """
         plt.clf()  # Clear the way for the next one
-        rewards = np.asarray(tracked_agent.rewards)
+        rewards = np.asarray(tracker.rewards)
         rewards[rewards < -500] = -500  # Throws off the graph when the occasional point goes really negative
 
         plt.title('Reward per Training Episode')
@@ -250,17 +252,17 @@ class Runner:
         plt.axhline(200, 0, 1, color='g')
         plt.ylabel('Reward')
         plt.xlabel('Episode')
-        name = round(rewards[-100:].mean(), 2)
-        name = str(name) + '_fig.png'
-        plt.savefig('figures/reward_' + name)
+
+        name = f'{tracker.id}_{round(rewards[-100:].mean(), 2)}'
+        plt.savefig(f'figures/{name}_reward.png')
 
         plt.clf()
         cumulative = np.cumsum(rewards)
         plt.title('Cumulative Reward vs. Target Update')
         plt.plot(cumulative, label='Cumulative Reward')
 
-        update_freq = tracked_agent.agent_params['target_update']
-        steps = np.cumsum(tracked_agent.steps)
+        update_freq = tracker.agent_params['target_update']
+        steps = np.cumsum(tracker.steps)
         for i in range(steps.size):
             step = steps[i]
             if step > update_freq:
@@ -268,7 +270,7 @@ class Runner:
                 plt.axvline(i, 0, 1, color='r')
         plt.ylabel('Reward')
         plt.xlabel('Episode')
-        plt.savefig('figures/cumulative_' + name)
+        plt.savefig(f'figures/{name}_cumulative.png')
 
     def moving_average(self, array, n=20):
         ret = np.cumsum(array, dtype=float)

@@ -20,7 +20,7 @@ class DQNAgent:
                  memory_size=120000, minibatch_size=100,
                  replay_freq=40, target_update=100000,
                  config: dict = None, num_inputs=8, num_actions=4,
-                 optim_type=Type[optim.Optimizer], optim_args={},
+                 optim_type: Type[optim.Optimizer] = optim.Adam, optim_args={'lr': 0.015},
                  criterion=nn.SmoothL1Loss()):
         """
         :param gamma: Discount factor for Bellman update
@@ -113,7 +113,7 @@ class DQNAgent:
             if i > 0 and i % percent == 0:
                 if callback:
                     data = {
-                        'percent': (i // percent),
+                        'percent': int(i / percent),
                         'stats': self.memory.get_statistics(),
                         'rar': self.random_action_rate
                     }
@@ -151,8 +151,8 @@ class DQNAgent:
                 next_state, reward, done, info = env.step(action)
                 state = np.asarray(next_state)
                 total += reward
-                if verbose:
-                    print(f"Action: {action}, Reward: {round(reward, 3)}, Total: {round(total, 4)}")
+                # if verbose:
+                #     print(f"Action: {action}, Reward: {round(reward, 3)}, Total: {round(total, 4)}")
 
             rewards.append(total)
             print(f"{i} Final Reward: {total}")
@@ -230,9 +230,9 @@ class DQNAgent:
         """
         Save the model for later loading
         """
-        filename = f'models/{save_name}_{suffix}.pt'
+        filename = f'models/networks/{save_name}_{suffix}.pt'
         print('Saving', filename)
-        torch.save(self.active_model.state_dict, filename)
+        torch.save(self.active_model.state_dict(), filename)
 
     def load(self, filename):
         """Load the model and set it as active (and target) model"""

@@ -1,6 +1,7 @@
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
+import yaml
 
 
 class AgentBuilder:
@@ -11,15 +12,15 @@ class AgentBuilder:
         self.current_config = None
         self.config_records = []
 
-        self.rars = [0.95, 1.0, 1.05, 1.1, 1.2]
-        self.rar_decays = [0.99997, 0.99998, 0.99999]
-        self.minibatch_sizes = [256, 512, 1024]
-        self.memories = [100000, 150000, 200000, 300000, 400000]
+        self.rars = [0.99, 1.0, 1.05, 1.1, 1.2]
+        self.rar_decays = [0.99996, 0.99997, 0.99998, 0.99999]
+        self.minibatch_sizes = [128, 256, 512]
+        self.memories = [150000, 200000, 300000, 400000, 500000]
         self.replay_freqs = [10, 20, 30, 40, 50]
-        self.target_updates = [80000, 100000, 125000, 150000]
-        self.gammas = [0.9992, 0.9995, 0.9998]
-        self.learning_rates = [0.0001, 0.0002, 0.0005, 0.001, 0.0015]
-        self.optim_types = [optim.Adam, optim.Adagrad, optim.Adadelta]  #, optim.ASGD, optim.SGD
+        self.target_updates = [50000, 80000, 100000, 120000]
+        self.gammas = [0.9994, 0.9996, 0.9998, 0.9999, 0.99995]
+        self.learning_rates = [0.00025, 0.0005, 0.001, 0.0015, 0.002]
+        self.optim_types = [optim.Adam, optim.AdamW, optim.Adadelta]  #, optim.ASGD, optim.SGD
         self.features = ['gammas', 'rars', 'rar_decays', 'memories', 'minibatch_sizes',
                          'replay_freqs', 'target_updates', 'optim_type', 'optim_args']
 
@@ -98,7 +99,7 @@ class RandomAgentBuilder(AgentBuilder):
     #     self.iterations = iterations
     #     return self
 
-    def pick_optimizer(self):
+    def _pick_optimizer(self):
         optim_type = np.random.choice(self.optim_types, 1)[0]
         lr = float(np.random.choice(self.learning_rates, 1))
         optim_args = {'lr': lr}
@@ -111,7 +112,6 @@ class RandomAgentBuilder(AgentBuilder):
         #     optim_args['weight_decay'] = 0.1
         # elif optim_type == optim.Adagrad:
         #     optim_args['lr_decay'] = np.random.rand() * 0.000001
-
         return optim_type, optim_args
 
     def next(self):
@@ -124,12 +124,12 @@ class RandomAgentBuilder(AgentBuilder):
 
 class ModelBuilder:
     def __init__(self, num_inputs, num_actions):
-        self.possible_units = [[128, 256], [32, 16]]
+        self.possible_units = [[32, 64, 128, 256], [32, 16, 8]]
         self.num_inputs = num_inputs
         self.num_actions = num_actions
 
     @staticmethod
-    def build(units=(16, 72), num_inputs=8, num_actions=4):
+    def build(units=(128, 32), num_inputs=8, num_actions=4):
         """
         Build a new NN model
         :param num_actions: Number of actions to output for the last layer
@@ -169,3 +169,32 @@ class RandomModelBuilder(ModelBuilder):
         # else:
         #     self.iterations -= 1
         return self._explore()
+
+
+class AgentLoader(AgentBuilder):
+    def __init__(self, path, num_inputs, num_actions):
+        super().__init__(num_inputs, num_actions)
+        self.path: str = path
+        self.optimizers = {}
+        for opt in self.optim_types:
+            name = str(opt)
+            start = name.find("'") + 1
+            end = name.rfind("'")
+            name = name[start:end]
+            self.optimizers[name] = opt
+
+    def load(self):
+        """
+        Note that `optim_type` in the config will need to match the name produced
+            if the class is converted using str()
+        :return:
+        """
+        with open(self.path, 'r') as file:
+            config = yaml.load(file)
+            agent_config = config['agent']
+            model_config = config['model']
+            agent_config['optim_type'] = self.optimizers[agent_config['optim_type']]
+            agent = self.create_agent(agent_config)
+            model = ModelBuilder.build(model_config['units'], self.num_inputs, self.num_actions)
+            agent.set_model(model)
+            return agent
