@@ -237,6 +237,8 @@ class DQNAgent:
     def load(self, filename):
         """Load the model and set it as active (and target) model"""
         print('Loading', filename)
-        self.create_model()
-        self.active_model.load_state_dict(torch.load(filename))
+        if not self.active_model:
+            self.create_model()
+        state = torch.load(filename)
+        self.active_model.load_state_dict(state)
         self.set_model(self.active_model)

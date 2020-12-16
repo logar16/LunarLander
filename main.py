@@ -4,13 +4,13 @@ import time
 import gym
 import numpy as np
 import matplotlib as mpl
+
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 from agents import DQNAgent
 from auto import Runner
 from builders import AgentLoader
-
 
 env = gym.make('LunarLander-v2')
 # env = gym.make('CartPole-v0')
@@ -27,9 +27,6 @@ def setup(config: str, load_file: str) -> DQNAgent:
     if load_file:
         print(f'Loading "{load_file}"...')
         agent.load(load_file)
-        agent.random_action_rate = 0.01
-        agent.rar_decay = 1.0
-        # agent.update_target_freq = 100000
     return agent
 
 
@@ -70,6 +67,10 @@ def save_rewards(filename, rewards):
     plt.savefig(f'figures/{filename}.png')
 
 
+def trim(s: str, start: str, end: str) -> str:
+    return s[(s.rfind(start)+1):s.rfind(end)]
+
+
 def main(arguments):
     interactive = arguments.interactive
     iterations = arguments.iterations
@@ -92,9 +93,11 @@ def main(arguments):
         name = f'training{iterations}_{time.strftime("%H-%M-%S")}'
         save_rewards(name, rewards)
         if config:
-            name = config[config.rfind('/') + 1:]
+            name = trim(config, '/', '.yaml')
+        elif load_file:
+            name = trim(load_file, '/', '.pt')
         else:
-            name = load_file or f'training_{iterations}'
+            name = f'training_{iterations}'
         agent.save(name, time.strftime("%H-%M-%S"))
         print('Evaluating...')
         rewards = agent.evaluate(env, 100, render, verbose, interactive)
@@ -103,7 +106,7 @@ def main(arguments):
     elif load_file:
         print('Evaluating...')
         rewards = agent.evaluate(env, iterations, render, verbose, interactive)
-        load_file = load_file[len('models/'):]  # Remove directory
+        load_file = trim(load_file, '/', '.pt')
         name = f'{load_file}_trial{iterations}'
         save_rewards(name, rewards)
     print("\n\n**DONE**")

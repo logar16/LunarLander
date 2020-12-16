@@ -189,8 +189,10 @@ class AgentLoader(AgentBuilder):
             if the class is converted using str()
         :return:
         """
+        print("Loading Config...")
         with open(self.path, 'r') as file:
             config = yaml.load(file)
+            print(config)
             agent_config = config['agent']
             model_config = config['model']
             agent_config['optim_type'] = self.optimizers[agent_config['optim_type']]
