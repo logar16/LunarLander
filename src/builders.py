@@ -85,7 +85,7 @@ class RandomAgentBuilder(AgentBuilder):
         replay_freq = np.random.choice(self.replay_freqs)
         target_update = np.random.choice(self.target_updates)
 
-        optim_type, optim_args = self.pick_optimizer()
+        optim_type, optim_args = self._pick_optimizer()
 
         config = {
             'gamma': gamma, 'rar': rar, 'rar_decay': rar_decay,
