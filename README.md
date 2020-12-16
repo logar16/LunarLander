@@ -2,7 +2,7 @@
 #### By Logan Jones
 
 This is adapted from a project I did for my master's degree in the GA Tech OMSCS program.
-The goal was to solve the Lunar Lander environment provided with OpenAI gym.
+The goal was to solve the Lunar Lander (v2) environment provided with OpenAI gym.
 I was very excited about the semi-recent advancement of DeepMind's Deep Q-Networks, 
 and so I did a custom implementation built only using the DQN paper "Human-level control through deep reinforcement learning." 
 for reference (Mnih Volodymyr et al. 2015).
@@ -10,6 +10,13 @@ for reference (Mnih Volodymyr et al. 2015).
 At the time I used Keras (and Python 2.7), but I have since grown more fond of PyTorch (and Python 3), 
 so this is essentially a port of that project.  I made several improvements in how the exploration is done and how the results are recorded.
 I also noticed a big speedup in processing as it seems PyTorch is much better at parallel processing than Keras was.
+
+See [a video](https://github.com/logar16/LunarLander/blob/master/figures/Flight%20Demonstration.mp4) of a simple, randomly picked agent configuration 
+trained for 1600 episodes and flying pretty decently.
+
+Note that the agent is only given 8 inputs (floating point numbers) and has 4 actions it can take.  
+The fact that it can identify where it is and how to land itself is pretty impressive.  
+If I was given the same inputs, I would struggle to learn how to fly in so short a time (<10 minutes). 
 
 ## Installation
 You should be able to install all the dependencies by (creating a virtual environment) 
