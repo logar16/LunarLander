@@ -65,3 +65,5 @@ python main.py -c models/configs/best.yaml -i 100 -l models/networks/best_23-14-
 Where the `-l` is the model save-file to load. `-i` indicates the number of evaluations to run against the loaded model.
 Note that you could add `-t` to do additional training.
 
+Finally, if you want to watch it fly, you can add the `-r` flag for "render".  
+You will need the Box2D stuff working with pyglet in order for it to render properly.

@@ -8,6 +8,7 @@ import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 
+sys.path.append('src/')
 from agents import DQNAgent
 from auto import Runner
 from builders import AgentLoader
