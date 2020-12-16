@@ -1,12 +1,13 @@
 from collections import deque
 
 import numpy as np
+import torch
 
 
 class ExperienceBuffer:
     """Stores a lot of data to help with experience replay.  Also can be handy for saving stats"""
 
-    def __init__(self, total_size, num_input, batch_size):
+    def __init__(self, total_size, num_input, batch_size, device='cpu'):
         if not total_size or not num_input or not batch_size:
             raise ValueError()
 
@@ -14,17 +15,18 @@ class ExperienceBuffer:
         self.batch_size = batch_size
         self.num_input = num_input
         self.length = 0
+        self.device = device
         # The Arrays
-        self.start_states = np.ndarray((total_size, num_input), dtype=np.float16)
-        self.actions = np.ndarray(total_size, dtype=np.int8)
-        self.rewards = np.ndarray(total_size, dtype=np.float16)
-        self.next_states = np.ndarray((total_size, num_input), dtype=np.float16)
-        self.terminations = np.ndarray(total_size, dtype=np.bool)
+        self.start_states = torch.zeros((total_size, num_input), dtype=torch.float16, device=device)
+        self.actions = torch.zeros(total_size, dtype=torch.int8, device=device)
+        self.rewards = torch.zeros(total_size, dtype=torch.float16, device=device)
+        self.next_states = torch.zeros((total_size, num_input), dtype=torch.float16, device=device)
+        self.terminations = torch.zeros(total_size, dtype=torch.bool, device=device)
         self.episodic_memory = EpisodicMemory()
 
     def add(self, start, action, reward, next_state, done):
         """Add an experience for future use"""
-        i = self.length % self.size  # Overwrite older entries once you run out of room
+        i = self.length % self.size  # Overwrite older entries once you run out of room (circular buffer)
         self.start_states[i] = start
         self.actions[i] = action
         self.rewards[i] = reward
@@ -36,16 +38,16 @@ class ExperienceBuffer:
             self.episodic_memory.reset()
 
     def ready(self):
-        return self.length > 20000
+        return self.length > 10000
 
-    def sample(self, replacement=False):
+    def sample(self):
         """Create a randomized mini-batch using previous experience"""
         size = self.batch_size
         if self.length < size:
             raise ValueError("Buffer is not large enough to return a batch size of " + str(size))
 
         max_index = min(self.length, self.size)
-        indexes = np.random.choice(max_index, size, replace=replacement)
+        indexes = torch.randint(high=max_index, size=(size,), device=self.device)
         starts = self.start_states[indexes]
         actions = self.actions[indexes]
         rewards = self.rewards[indexes]
@@ -55,15 +57,6 @@ class ExperienceBuffer:
 
     def get_statistics(self):
         return self.episodic_memory.statistics(cumulative=True)
-
-    def fake_experiences(self, iterations):
-        state = np.arange(self.num_input)
-        for i in range(iterations):
-            next_state = np.random.choice(10, self.num_input)
-            action = np.random.randint(4)
-            reward = np.random.random()
-            done = np.random.random() < 0.05
-            self.add(state, action, reward, next_state, done)
 
 
 class EpisodicMemory:

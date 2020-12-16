@@ -14,13 +14,13 @@ class AgentBuilder:
 
         self.rars = [0.99, 1.0, 1.05, 1.1, 1.2]
         self.rar_decays = [0.99996, 0.99997, 0.99998, 0.99999]
-        self.minibatch_sizes = [128, 256, 512]
-        self.memories = [150000, 200000, 300000, 400000, 500000]
+        self.minibatch_sizes = [256, 512, 1024, 2056]
+        self.memories = [150000, 200000, 300000]
         self.replay_freqs = [10, 20, 30, 40, 50]
         self.target_updates = [50000, 80000, 100000, 120000]
-        self.gammas = [0.9994, 0.9996, 0.9998, 0.9999, 0.99995]
-        self.learning_rates = [0.00025, 0.0005, 0.001, 0.0015, 0.002]
-        self.optim_types = [optim.Adam, optim.AdamW, optim.Adadelta]  #, optim.ASGD, optim.SGD
+        self.gammas = [0.999, 0.9992, 0.9994, 0.9996]
+        self.learning_rates = [0.0008, 0.001, 0.0015, 0.002]
+        self.optim_types = [optim.Adam, optim.Adadelta]  # optim.Adagrad, optim.AdamW, optim.ASGD, optim.SGD
         self.features = ['gammas', 'rars', 'rar_decays', 'memories', 'minibatch_sizes',
                          'replay_freqs', 'target_updates', 'optim_type', 'optim_args']
 

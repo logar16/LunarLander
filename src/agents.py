@@ -21,7 +21,7 @@ class DQNAgent:
                  replay_freq=40, target_update=100000,
                  config: dict = None, num_inputs=8, num_actions=4,
                  optim_type: Type[optim.Optimizer] = optim.Adam, optim_args={'lr': 0.015},
-                 criterion=nn.SmoothL1Loss()):
+                 criterion=nn.SmoothL1Loss(), device='cpu'):
         """
         :param gamma: Discount factor for Bellman update
         :param rar: Random action rate (RAR)
@@ -29,8 +29,12 @@ class DQNAgent:
         :param memory_size: How many experiences to keep for experience replay
         :param minibatch_size: Number of randomly selected experiences to use in a batch training
         :param replay_freq: How often experience replay should be run (i.e. how many episodes between replay)
+        :param device: Defaults to "cpu" since this works fastest on my machine for single-runs,
+        but if you set it to None it will try to infer whether to use "cuda" or "cpu".  You can also set to "cuda".
         """
         self.config = config
+        self.device = device or 'cuda' if torch.cuda.is_available() else 'cpu'
+        print('Device:', self.device)
         self.num_inputs = num_inputs
         self.num_actions = num_actions
         # Discount of future reward
@@ -39,7 +43,7 @@ class DQNAgent:
         self.random_action_rate = rar
         self.rar_decay = rar_decay
         # Memory for experience replay
-        self.memory = ExperienceBuffer(memory_size, self.num_inputs, minibatch_size)
+        self.memory = ExperienceBuffer(memory_size, self.num_inputs, minibatch_size, device=self.device)
         self.replay_freq = replay_freq
         # How many iterations between copying the active model to the target model
         self.update_target_freq = target_update
@@ -59,6 +63,8 @@ class DQNAgent:
         Give the agent a model to use.
         Will set the model to be active model, and a copy of it to be the target model.
         """
+        if self.device == 'cuda':
+            model = model.cuda()
         self.active_model = model
         self.optimizer = self.optim_type(model.parameters(), **self.optim_args)
         # copy active model to begin
@@ -84,7 +90,7 @@ class DQNAgent:
                 break
             # setup environment and start state
             state = env.reset()
-            state = np.asarray(state)
+            state = torch.tensor(state, device=self.device)
             done = False
 
             while not done:
@@ -93,7 +99,7 @@ class DQNAgent:
                 action = self.query(state)
                 # See where the action takes you
                 next_state, reward, done, info = env.step(action)
-                next_state = np.asarray(next_state)
+                next_state = torch.tensor(next_state, device=self.device)
                 # Add the transition to the memory.
                 self.memory.add(state, action, reward, next_state, done)
                 state = next_state
@@ -111,15 +117,21 @@ class DQNAgent:
                 self.experience_replay()
 
             if i > 0 and i % percent == 0:
-                if callback:
-                    data = {
-                        'percent': int(i / percent),
-                        'stats': self.memory.get_statistics(),
-                        'rar': self.random_action_rate
-                    }
-                    callback(self, data)
+                self.update_event(int(i / percent), callback)
 
+        self.update_event(100, callback)
         return self.memory.get_statistics()
+
+    def update_event(self, percent: int, callback: Callable = None):
+        data = {
+            'percent': percent,
+            'stats': self.memory.get_statistics(),
+            'rar': self.random_action_rate
+        }
+        if callback:
+            callback(self, data)
+        # else:
+        #     print(data)
 
     def evaluate(self, env: gym.Env, episodes: int, render=False, verbose=False, interactive=False):
         """
@@ -129,7 +141,7 @@ class DQNAgent:
         for i in range(episodes):
             # setup environment and start state
             state = env.reset()
-            state = np.asarray(state)
+            state = torch.tensor(state, device=self.device)
             done = False
             total = 0
             skip = 0
@@ -149,7 +161,7 @@ class DQNAgent:
                 action = self.query(state, random_actions=False)
                 # See where the action takes you
                 next_state, reward, done, info = env.step(action)
-                state = np.asarray(next_state)
+                state = torch.tensor(next_state, device=self.device)
                 total += reward
                 # if verbose:
                 #     print(f"Action: {action}, Reward: {round(reward, 3)}, Total: {round(total, 4)}")
@@ -169,7 +181,7 @@ class DQNAgent:
                 self.random_action_rate *= self.rar_decay
             if np.random.random() < self.random_action_rate:
                 return np.random.randint(self.num_actions)  # Pick a random action
-        state = torch.tensor(state).reshape(1, self.num_inputs)
+        state = state.clone().reshape(1, self.num_inputs)
         actions = self.active_model(state)
         return torch.argmax(actions).item()
 
@@ -178,16 +190,13 @@ class DQNAgent:
         Train the model using experience replay (take minibatches from the replay memory)
         """
         prev_states, actions, rewards, next_states, terminates = self.memory.sample()
-        size = actions.size
+        size = actions.size(0)
 
         # Convert to Torch Tensors
-        prev_states = torch.tensor(prev_states, dtype=torch.float, requires_grad=False)
-        actions = torch.tensor(actions, requires_grad=False)
-        rewards = torch.tensor(rewards, dtype=torch.float, requires_grad=False)
-        terminates = torch.tensor(terminates, requires_grad=False)
-        next_states = torch.tensor(next_states, dtype=torch.float, requires_grad=False)
+        prev_states = prev_states.to(dtype=torch.float)
+        next_states = next_states.to(dtype=torch.float)
 
-        # DDQN
+        # TODO: DDQN
         # if np.random.randint(2):
         #     update_model = self.active_model
         #     ref_model = self.active_model2
@@ -210,8 +219,15 @@ class DQNAgent:
         self.train_model(prev_states, updated_value)
 
     def train_model(self, X, y):
+        """
+        Give the model some experiences and let it train/learn how to predict outcomes from states.
+        :param X: Input states
+        :param y: Actual rewards
+        """
         self.optimizer.zero_grad()
+        # Have it guess what the reward would be for a state
         output = self.active_model(X)
+        # Compare to actual state
         loss = self.criterion(output, y)
         loss.backward()
         self.optimizer.step()

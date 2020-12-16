@@ -51,7 +51,7 @@ Note that only models with a good mean score will be saved, and they are saved a
 Figures should be populated automatically.
 
 
-To train a specific configuration, create a config file (see others for examples) 
+To train a specific configuration, create a config file (see others for examples or the config section below) 
 specifying what you want the hyperparameters and model architecture to be.
 Add that config to the `models/configs/` directory and run it with the following command:
 
@@ -74,3 +74,31 @@ Note that you could add `-t` to do additional training.
 
 Finally, if you want to watch it fly, you can add the `-r` flag for "render".  
 You will need the Box2D stuff working with pyglet in order for it to render properly.
+
+
+### Config Files
+A standard config file looks like this
+
+```yaml
+agent:    # See the agents.py file and DQNAgent class `__init__()` method for more details
+  gamma: 0.9992
+  rar: 1.05
+  rar_decay: 0.99997
+  memory_size: 200000
+  minibatch_size: 2048
+  replay_freq: 40
+  target_update: 80000
+  optim_type: torch.optim.adadelta.Adadelta   # Use the fully specified class name
+  optim_args: 
+    lr: 1   # Adadelta has a higher learning rate.  Adam would be more like 0.001
+  device: null  # `null` is check for cuda and use if available.  Other options are "cpu" and "cuda"
+
+# Define the model.  Currently only the number of units in the two linear layers are needed
+model:
+  units: [64, 16] 
+```
+
+As noted in the example, you can use either "cuda" or "cpu" for hosting the the PyTorch tensors.  
+I found that (for my setup) CPU is faster but it takes up a lot of CPU (about 50% or 2 of my 4 cores).
+Use CUDA, I only increase CPU usage by about 15% but had about a 20-30% reduction in speed.  
+However, I was able to run three instances for the price of one (CPU-wise), and thus was able to cover more ground. 

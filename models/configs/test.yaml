@@ -3,15 +3,14 @@ agent:
   rar: 1.05
   rar_decay: 0.99997
   memory_size: 200000
-  minibatch_size: 2048
+  minibatch_size: 512
   replay_freq: 40
-  target_update: 80000
+  target_update: 125000
   optim_type: torch.optim.adadelta.Adadelta
   optim_args: 
     lr: 1
-  device: cpu
 
 model:
-  units: [64, 16] 
+  units: [64, 8]
 
 # criterion:

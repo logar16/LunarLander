@@ -4,6 +4,7 @@ import time
 import gym
 import numpy as np
 import matplotlib as mpl
+import torch
 
 mpl.use('Agg')
 import matplotlib.pyplot as plt
@@ -75,12 +76,17 @@ def trim(s: str, start: str, end: str) -> str:
 def main(arguments):
     interactive = arguments.interactive
     iterations = arguments.iterations
+    seed = arguments.seed
     config = arguments.config
     load_file = arguments.load_file
     explore = arguments.explore
     train = arguments.train
     render = arguments.render or interactive
     verbose = arguments.verbose or interactive
+
+    if seed:
+        np.random.seed(seed)
+        torch.random.manual_seed(seed)
 
     if explore:
         print('Exploring Hyper-Parameters')
@@ -90,8 +96,12 @@ def main(arguments):
     agent = setup(config, load_file)
     if train:
         print('Training...')
+        time_text = time.strftime("%H-%M-%S")
+        print(f'Starting at: {time_text}')
+        start = time.time()
         rewards, episode_length = agent.train(env, iterations, callback=print_progress)
-        name = f'training{iterations}_{time.strftime("%H-%M-%S")}'
+        print(f'Duration of training was {time.time() - start}')
+        name = f'training{iterations}_{time_text}'
         save_rewards(name, rewards)
         if config:
             name = trim(config, '/', '.yaml')
@@ -99,10 +109,10 @@ def main(arguments):
             name = trim(load_file, '/', '.pt')
         else:
             name = f'training_{iterations}'
-        agent.save(name, time.strftime("%H-%M-%S"))
+        agent.save(name, time_text)
         print('Evaluating...')
         rewards = agent.evaluate(env, 100, render, verbose, interactive)
-        name = f'trial{iterations}_{time.strftime("%H-%M-%S")}'
+        name = f'trial{iterations}_{time_text}'
         save_rewards(name, rewards)
     elif load_file:
         print('Evaluating...')
@@ -133,6 +143,10 @@ if __name__ == "__main__":
     # iterations
     parser.add_argument('-i', '--iterations', help='Iterations to run or train for',
                         dest='iterations', default=100, type=int)
+    # seed
+    parser.add_argument('-s', '--seed', help='Seed the random number generators for (more) consistent results.'
+                                             'Note that torch uses some non-deterministic behaviors for efficiency',
+                        dest='seed', default=0, type=int)
     # render
     parser.add_argument('-r', '--render', help='Render each frame',
                         dest='render', const=True, default=False, action='store_const')
