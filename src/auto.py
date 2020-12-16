@@ -61,7 +61,8 @@ class PerformanceTracker:
                                                     episodes,
                                                     callback=self.on_progress,
                                                     verbose=self.verbose)
-        print(f"\nCompleted in {time.time() - start} sec. at {time.strftime('%H:%M:%S')}")
+        print(f"\nCompleted in {round(time.time() - start, 4)} sec. "
+              f"at {time.strftime('%H:%M:%S')}")
         self.end()
         print(self)
 
@@ -98,7 +99,14 @@ class PerformanceTracker:
             reward = reward[-self.percent_size:]
             print(f"\t\tRecent reward={round(reward.mean(), 3)},  "
                   f"max={round(reward.max(), 3)}")
-        print(f'{percent}% ... ', end="")
+
+        if self.verbose:
+            print(f'{percent}% ... ', end="")
+        else:
+            progress = '=' * int(percent)
+            progress += '>'
+            left = ' ' * (100 - percent)
+            print(f'{percent}% [{progress + left}]', end='\r')
 
 
     def end(self):

@@ -39,17 +39,18 @@ def explore_options(iterations, verbose):
 
 def print_progress(agent, data):
     percent = data['percent']
-    if percent % 5 != 0:
-        return
     progress = '=' * int(percent)
     progress += '>'
     left = ' ' * (100 - percent)
-    print(f'{percent}% [{progress + left}]')
+    print(f'{percent}% [{progress + left}]', end='\r')
+    if percent % 5 != 0:
+        return
     reward, steps = data['stats']
     total = round(reward.mean(), 3)
     last100 = round(reward[-100:].mean(), 3)
     steps = steps.sum()
-    print(f'Total Mean: {total},  Last 100 Mean: {last100},  Steps: {steps}')
+    # Spaces at the end are to clean up the progress bar
+    print(f'Total Mean: {total},  Last 100 Mean: {last100},  Steps: {steps}', " " * 50)
 
 
 def moving_average(array, n=20):

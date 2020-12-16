@@ -34,7 +34,6 @@ class DQNAgent:
         """
         self.config = config
         self.device = device or 'cuda' if torch.cuda.is_available() else 'cpu'
-        print('Device:', self.device)
         self.num_inputs = num_inputs
         self.num_actions = num_actions
         # Discount of future reward
@@ -79,6 +78,9 @@ class DQNAgent:
         """
         Use for training the model.  See `self.run()` for evaluation
         """
+        if verbose:
+            print('Device:', self.device)
+
         if not self.active_model:
             self.create_model()
         self.total_episodes = episodes
@@ -137,6 +139,8 @@ class DQNAgent:
         """
         Use when testing a pre-trained model. Will not update/train the model.
         """
+        if verbose:
+            print('Device:', self.device)
         rewards = deque()
         for i in range(episodes):
             # setup environment and start state
