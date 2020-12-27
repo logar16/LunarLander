@@ -56,6 +56,7 @@ class DQNAgent:
 
         self.end_early = False
         self.total_episodes = 1000
+        self.losses = []
 
     def set_model(self, model: nn.Module):
         """
@@ -124,21 +125,23 @@ class DQNAgent:
                 self.experience_replay()
 
             if i > 0 and i % percent == 0:
-                self.update_event(int(i / percent), callback)
+                self.update_event(int(i / percent), callback, verbose)
 
-        self.update_event(100, callback)
+        self.update_event(100, callback, verbose)
         return self.memory.get_statistics()
 
-    def update_event(self, percent: int, callback: Callable = None):
+    def update_event(self, percent: int, callback: Callable = None, verbose: bool = False):
         data = {
             'percent': percent,
             'stats': self.memory.get_statistics(),
-            'rar': self.random_action_rate
+            'rar': self.random_action_rate,
+            'losses': torch.tensor(self.losses)[-100:],
+            'verbose': verbose,
         }
         if callback:
             callback(self, data)
-        # else:
-        #     print(data)
+        elif verbose:
+            print(data)
 
     def evaluate(self, env: gym.Env, episodes: int, render=False, verbose=False, interactive=False):
         """
@@ -248,6 +251,7 @@ class DQNAgent:
         loss = self.criterion(output, y)
         loss.backward()
         self.optimizer.step()
+        self.losses.append(loss.item())
 
     def end_training_early(self):
         self.end_early = True

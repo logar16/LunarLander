@@ -42,21 +42,34 @@ def print_progress(agent, data):
     progress = '=' * int(percent)
     progress += '>'
     left = ' ' * (100 - percent)
-    print(f'{percent}% [{progress + left}]', end='\r')
+    progress = f'{percent}% [{progress + left}]'
+
+    reward, steps = data['stats']
+    mean = round(reward.mean(), 1)
+
+    print(progress + f'  μ: {mean}', end='\r')
     if percent % 5 != 0:
         return
-    reward, steps = data['stats']
-    mean = round(reward.mean(), 3)
-    std = round(reward.std(), 2)
+    std = round(reward.std(), 1)
     positive = reward[reward > 0].size
     total = reward.size
-    last100 = round(reward[-100:].mean(), 3)
+    last100 = reward[-100:]
+    last_mean = round(last100.mean(), 2)
+    last_std = round(last100.std(), 1)
     steps = steps.sum()
     # Spaces at the end are to clean up the progress bar
-    print(f'Total Mean: {mean},  Std Dev: {std},  '
-          f'Last 100 Mean: {last100},  Positive Episodes: {positive}/{total}  '
-          f'Steps: {steps}', " " * 50)
-    print(f'{percent}% [{progress + left}]', end='\r')
+    print(f'Total mean: {mean}, std: {std};  '
+          f'Last 100 mean: {last_mean}, std: {last_std};  '
+          f'Positive: {positive}/{total}  '
+          f'Steps: {steps}', " " * 20)
+    verbose = data['verbose']
+    if verbose:
+        losses = data['losses']
+        if len(losses) > 1:
+            mean = round(losses.mean().item(), 3)
+            std = round(torch.std(losses).item(), 3)
+            print(f'Recent Losses: {losses[-5:]}, mean: {mean}, std: {std}')
+    print(progress, end='\r')
 
 
 def moving_average(array, n=20):
@@ -67,6 +80,7 @@ def moving_average(array, n=20):
 
 def save_rewards(filename, rewards):
     plt.clf()
+    rewards[rewards < -500] = -500
     plt.plot(rewards, 'bo', label='Episode Reward')
     plt.plot(moving_average(rewards), 'r', label='Rolling Mean (20)')
     plt.axhline(200, 0, 1, color='g')
@@ -106,7 +120,7 @@ def main(arguments):
         time_text = time.strftime("%H-%M-%S")
         print(f'Starting at: {time.strftime("%H:%M:%S")}')
         start = time.time()
-        rewards, episode_length = agent.train(env, iterations, callback=print_progress)
+        rewards, episode_length = agent.train(env, iterations, callback=print_progress, verbose=verbose)
         print(f'Duration of training was {time.time() - start}')
         name = f'training{iterations}_{time_text}'
         save_rewards(name, rewards)

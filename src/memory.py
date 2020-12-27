@@ -34,6 +34,12 @@ class ExperienceBuffer:
 
     def add(self, start, action, reward, next_state, done):
         """Add an experience for future use"""
+        self.episodic_memory.add(reward)
+
+        # Ignore some of the transitory states as we've got them in the buffer and they don't help that much
+        if not done and np.random.rand() < 0.5:
+            return
+
         i = self.length % self.size  # Overwrite older entries once you run out of room (circular buffer)
         self.start_states[i] = start
         self.actions[i] = action
@@ -41,7 +47,6 @@ class ExperienceBuffer:
         self.next_states[i] = next_state
         self.terminations[i] = done
         self.length += 1
-        self.episodic_memory.add(reward)
         if done:
             self.episodic_memory.reset()
 

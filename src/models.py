@@ -22,6 +22,7 @@ class LinearModel(nn.Module):
 class MemoryModel(nn.Module):
     def __init__(self, rnn: str = "GRU", units=(64, 32), num_inputs=8, num_actions=4, seq_len=3):
         super(MemoryModel, self).__init__()
+        self.seq_len = seq_len
         if rnn == 'GRU':
             rnn = nn.GRU(num_inputs, units[0], batch_first=True)
         else:
@@ -30,10 +31,12 @@ class MemoryModel(nn.Module):
         self.linear1 = nn.Linear(units[0] * seq_len, units[1])
         self.linear2 = nn.Linear(units[1], num_actions)
 
-    def forward(self, input):
-        x, hidden = self.rnn(input)
+    def forward(self, x):
+        self.rnn.flatten_parameters()
+        # for i in range(self.seq_len)
+        x, hidden = self.rnn(x)
         x = F.relu(x)
         x = torch.flatten(x, start_dim=1)
         x = F.relu(self.linear1(x))
-        x = F.relu(self.linear2(x))
+        x = self.linear2(x)
         return x
