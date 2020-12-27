@@ -2,6 +2,7 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 import yaml
+from models import LinearModel, MemoryModel
 
 
 class AgentBuilder:
@@ -129,24 +130,22 @@ class ModelBuilder:
         self.num_actions = num_actions
 
     @staticmethod
-    def build(units=(128, 32), num_inputs=8, num_actions=4):
+    def build(units=(128, 32), num_inputs=8, num_actions=4, device="cpu", memory=""):
         """
         Build a new NN model
-        :param num_actions: Number of actions to output for the last layer
+        :type units: tuple
         :param num_inputs: Number of inputs to expect on the first layer
+        :param num_actions: Number of actions to output for the last layer
         :param units: A list of units to be used in each layer.
-        :type units: list
-        :return Module: A new  model
+        :param memory: Indicates if first layer should be a RNN.  Values can be "GRU" or "LSTM"
+        :param device: which device to use for PyTorch
+        :return Module: A new PyTorch model
         """
-        # TODO: CUDA
-        layers = [nn.Linear(num_inputs, units[0]), nn.ReLU()]
-        if units[1]:
-            layers.append(nn.Linear(units[0], units[1]))
-            layers.append(nn.ReLU())
-
-        layers.append(nn.Linear(units[-1], num_actions))
-        model = nn.Sequential(*layers)
-        return model
+        if memory:
+            model = MemoryModel(memory, units, num_inputs, num_actions)
+        else:
+            model = LinearModel(units, num_inputs, num_actions)
+        return model.to(device=device)
 
 
 class RandomModelBuilder(ModelBuilder):
@@ -197,6 +196,11 @@ class AgentLoader(AgentBuilder):
             model_config = config['model']
             agent_config['optim_type'] = self.optimizers[agent_config['optim_type']]
             agent = self.create_agent(agent_config)
-            model = ModelBuilder.build(model_config['units'], self.num_inputs, self.num_actions)
+            device = agent_config['device']
+            units = model_config['units']
+            memory = None
+            if 'memory' in model_config:
+                memory = model_config['memory']
+            model = ModelBuilder.build(units, self.num_inputs, self.num_actions, device=device, memory=memory)
             agent.set_model(model)
             return agent

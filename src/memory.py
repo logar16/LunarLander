@@ -7,20 +7,28 @@ import torch
 class ExperienceBuffer:
     """Stores a lot of data to help with experience replay.  Also can be handy for saving stats"""
 
-    def __init__(self, total_size, num_input, batch_size, device='cpu'):
-        if not total_size or not num_input or not batch_size:
+    def __init__(self, total_size: int, obs_size: int, seq_len: int, batch_size: int, device='cpu'):
+        """
+        :param total_size: Maximum number of memories to keep
+        :param obs_size: size of each observation
+        :param seq_len: Number of sequential memories to store together (to give context)
+        :param batch_size: minibatch sample size (number of memories to return)
+        :param device: PyTorch device to use for storing memory.
+        """
+        if not (total_size and obs_size and seq_len and batch_size):
             raise ValueError()
 
         self.size = total_size
+        self.num_input = obs_size
+        self.seq_len = seq_len
         self.batch_size = batch_size
-        self.num_input = num_input
         self.length = 0
         self.device = device
         # The Arrays
-        self.start_states = torch.zeros((total_size, num_input), dtype=torch.float16, device=device)
+        self.start_states = torch.zeros((total_size, seq_len, obs_size), dtype=torch.float16, device=device)
         self.actions = torch.zeros(total_size, dtype=torch.int8, device=device)
         self.rewards = torch.zeros(total_size, dtype=torch.float16, device=device)
-        self.next_states = torch.zeros((total_size, num_input), dtype=torch.float16, device=device)
+        self.next_states = torch.zeros_like(self.start_states)
         self.terminations = torch.zeros(total_size, dtype=torch.bool, device=device)
         self.episodic_memory = EpisodicMemory()
 

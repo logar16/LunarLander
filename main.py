@@ -46,11 +46,17 @@ def print_progress(agent, data):
     if percent % 5 != 0:
         return
     reward, steps = data['stats']
-    total = round(reward.mean(), 3)
+    mean = round(reward.mean(), 3)
+    std = round(reward.std(), 2)
+    positive = reward[reward > 0].size
+    total = reward.size
     last100 = round(reward[-100:].mean(), 3)
     steps = steps.sum()
     # Spaces at the end are to clean up the progress bar
-    print(f'Total Mean: {total},  Last 100 Mean: {last100},  Steps: {steps}', " " * 50)
+    print(f'Total Mean: {mean},  Std Dev: {std},  '
+          f'Last 100 Mean: {last100},  Positive Episodes: {positive}/{total}  '
+          f'Steps: {steps}', " " * 50)
+    print(f'{percent}% [{progress + left}]', end='\r')
 
 
 def moving_average(array, n=20):
@@ -98,7 +104,7 @@ def main(arguments):
     if train:
         print('Training...')
         time_text = time.strftime("%H-%M-%S")
-        print(f'Starting at: {time_text}')
+        print(f'Starting at: {time.strftime("%H:%M:%S")}')
         start = time.time()
         rewards, episode_length = agent.train(env, iterations, callback=print_progress)
         print(f'Duration of training was {time.time() - start}')

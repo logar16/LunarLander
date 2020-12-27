@@ -21,7 +21,7 @@ class DQNAgent:
                  replay_freq=40, target_update=100000,
                  config: dict = None, num_inputs=8, num_actions=4,
                  optim_type: Type[optim.Optimizer] = optim.Adam, optim_args={'lr': 0.015},
-                 criterion=nn.SmoothL1Loss(), device='cpu'):
+                 criterion=nn.SmoothL1Loss(), device: str = 'cpu', seq_len: int = 3):
         """
         :param gamma: Discount factor for Bellman update
         :param rar: Random action rate (RAR)
@@ -42,7 +42,7 @@ class DQNAgent:
         self.random_action_rate = rar
         self.rar_decay = rar_decay
         # Memory for experience replay
-        self.memory = ExperienceBuffer(memory_size, self.num_inputs, minibatch_size, device=self.device)
+        self.memory = ExperienceBuffer(memory_size, self.num_inputs, seq_len, minibatch_size, device=self.device)
         self.replay_freq = replay_freq
         # How many iterations between copying the active model to the target model
         self.update_target_freq = target_update
@@ -90,21 +90,26 @@ class DQNAgent:
         for i in range(episodes):
             if self.end_early:
                 break
-            # setup environment and start state
+            # Setup environment and start state
             state = env.reset()
             state = torch.tensor(state, device=self.device)
-            done = False
+            # Memory buffer
+            buffer = torch.zeros(self.memory.seq_len, self.num_inputs, device=self.device)
+            buffer[-1] = state
 
+            done = False
             while not done:
                 step += 1
                 # Pick an action
-                action = self.query(state)
+                action = self.query(buffer)
                 # See where the action takes you
-                next_state, reward, done, info = env.step(action)
-                next_state = torch.tensor(next_state, device=self.device)
+                state, reward, done, info = env.step(action)
+                state = torch.tensor(state, device=self.device)
+                # Add next state to the buffer (and remove oldest data)
+                new_buffer = torch.cat((buffer[1:], state.unsqueeze(0)))
                 # Add the transition to the memory.
-                self.memory.add(state, action, reward, next_state, done)
-                state = next_state
+                self.memory.add(buffer, action, reward, new_buffer, done)
+                buffer = new_buffer
 
                 # Check if it is time to learn
                 if step % self.replay_freq == 0 and self.memory.ready():
@@ -143,9 +148,13 @@ class DQNAgent:
             print('Device:', self.device)
         rewards = deque()
         for i in range(episodes):
-            # setup environment and start state
+            # Setup environment and start state
             state = env.reset()
             state = torch.tensor(state, device=self.device)
+            # Memory buffer
+            buffer = torch.zeros(self.memory.seq_len, self.num_inputs, device=self.device)
+            buffer[-1] = state
+
             done = False
             total = 0
             skip = 0
@@ -162,22 +171,24 @@ class DQNAgent:
                                 skip = int(entry)
 
                 # Pick an action
-                action = self.query(state, random_actions=False)
+                action = self.query(buffer, random_actions=False)
                 # See where the action takes you
-                next_state, reward, done, info = env.step(action)
-                state = torch.tensor(next_state, device=self.device)
+                state, reward, done, info = env.step(action)
+                state = torch.tensor(state, device=self.device)
+                buffer = torch.cat((buffer[1:], state.unsqueeze(0)))
                 total += reward
                 # if verbose:
                 #     print(f"Action: {action}, Reward: {round(reward, 3)}, Total: {round(total, 4)}")
 
             rewards.append(total)
-            print(f"{i} Final Reward: {total}")
+            if verbose:
+                print(f"{i} Final Reward: {total}")
         rewards = np.asarray(rewards)
         print("Average Reward:", rewards.mean())
         print("Standard Dev:", rewards.std())
         return rewards
 
-    def query(self, state, random_actions=True):
+    def query(self, buffer, random_actions=True):
         """Ask the agent what action to take given the state"""
         if random_actions:
             # Decrement random action rate slightly, but only until it is pretty small, then leave it alone
@@ -185,9 +196,11 @@ class DQNAgent:
                 self.random_action_rate *= self.rar_decay
             if np.random.random() < self.random_action_rate:
                 return np.random.randint(self.num_actions)  # Pick a random action
-        state = state.clone().reshape(1, self.num_inputs)
-        actions = self.active_model(state)
-        return torch.argmax(actions).item()
+
+        with torch.no_grad():
+            results = self.active_model(buffer.unsqueeze(0))
+            actions = results.squeeze()
+            return torch.argmax(actions).item()
 
     def experience_replay(self):
         """

@@ -7,11 +7,10 @@ agent:
   replay_freq: 40
   target_update: 80000
   optim_type: torch.optim.adadelta.Adadelta
-  optim_args: 
+  optim_args:
     lr: 1
   device: cuda
 
 model:
-  units: [64, 16] 
-
-# criterion:
+  units: [32, 16]
+  memory: LSTM
