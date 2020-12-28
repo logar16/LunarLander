@@ -2,7 +2,7 @@ agent:
   gamma: 0.9992
   rar: 1.05
   rar_decay: 0.99997
-  memory_size: 200000
+  memory_size: 300000
   minibatch_size: 2048
   replay_freq: 40
   target_update: 80000
