@@ -6,8 +6,11 @@ import torch.nn.functional as F
 class LinearModel(nn.Module):
     def __init__(self, units=(64, 32), num_inputs=8, num_actions=4, seq_len=3):
         super(LinearModel, self).__init__()
-        layers = [nn.Linear(num_inputs * seq_len, units[0]), nn.ReLU()]
-        if units[1]:
+        layers = [
+            nn.Linear(num_inputs * seq_len, units[0]),
+            nn.ReLU()
+        ]
+        if len(units) == 2:
             layers.append(nn.Linear(units[0], units[1]))
             layers.append(nn.ReLU())
 

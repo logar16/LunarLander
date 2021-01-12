@@ -84,6 +84,7 @@ class DQNAgent:
 
         if not self.active_model:
             self.create_model()
+
         self.total_episodes = episodes
         percent = (episodes / 100) or 1
         step = 0
@@ -119,12 +120,12 @@ class DQNAgent:
                 # Update the target to reflect knowledge
                 if step % self.update_target_freq == 0:
                     self.target_model = deepcopy(self.active_model)
-                    if verbose: print(f'\nCopying Active to Target on step {step}')
+                    # if verbose: print(f'\nCopying Active to Target on step {step}')
 
             if self.memory.ready():
                 self.experience_replay()
 
-            if i > 0 and i % percent == 0:
+            if (i + 1) % percent == 0:
                 self.update_event(int(i / percent), callback, verbose)
 
         self.update_event(100, callback, verbose)
@@ -135,7 +136,7 @@ class DQNAgent:
             'percent': percent,
             'stats': self.memory.get_statistics(),
             'rar': self.random_action_rate,
-            'losses': torch.tensor(self.losses)[-100:],
+            'losses': torch.tensor(self.losses),
             'verbose': verbose,
         }
         if callback:
@@ -195,7 +196,7 @@ class DQNAgent:
         """Ask the agent what action to take given the state"""
         if random_actions:
             # Decrement random action rate slightly, but only until it is pretty small, then leave it alone
-            if self.random_action_rate > 0.001:
+            if self.random_action_rate > 0.01:
                 self.random_action_rate *= self.rar_decay
             if np.random.random() < self.random_action_rate:
                 return np.random.randint(self.num_actions)  # Pick a random action

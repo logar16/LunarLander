@@ -2,10 +2,10 @@ agent:
   gamma: 0.9992
   rar: 1.05
   rar_decay: 0.99997
-  memory_size: 300000
+  memory_size: 1000000
   minibatch_size: 2048
-  replay_freq: 40
-  target_update: 80000
+  replay_freq: 10
+  target_update: 30000
   optim_type: torch.optim.adadelta.Adadelta
   optim_args:
     lr: 1

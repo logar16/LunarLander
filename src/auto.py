@@ -2,8 +2,8 @@ import gc
 import time
 
 import numpy as np
-import matplotlib as mpl
-mpl.use('Agg')
+# import matplotlib as mpl
+# mpl.use('Agg')
 import matplotlib.pyplot as plt
 
 from builders import RandomAgentBuilder, RandomModelBuilder, SpecificAgentBuilder
