@@ -30,6 +30,9 @@ For example, here is one trained with an Adadelta optimizer for 400 episodes (16
 #### Reward per step
 ![adadelta-steps](figures/Adadelta-ConstantReplay/training400_Ada-1replay(3)_steps.png)
 
+#### Evaluation (100 trials)
+![adadelta-eval](figures/Adadelta-ConstantReplay/Ada-1replay(3)_trial100_episodes.png)
+
 I ran the model 5 times with the same configuration and it ended above 200 reward 4/5 times (one instance of 180).
 Typically once it got an average of 200, the average would oscillate around 200--never greatly improving or declining. Thus, I chose to stop training at that point.
 

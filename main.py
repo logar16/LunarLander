@@ -125,7 +125,7 @@ def save_rewards(filename, rewards, steps=None, window=20, verbose=False):
     # plt.show()
 
 
-def graph(rewards, steps=None, xlabel='Episode', ylabel='Reward', window: int = 20, verbose=False):
+def graph(rewards: np.ndarray, steps=None, xlabel='Episode', ylabel='Reward', window: int = 20, verbose=False):
     if steps is None:
         steps = np.arange(len(rewards))
     average = moving_average(rewards, window)
