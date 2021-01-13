@@ -56,7 +56,7 @@ def print_progress(agent: DQNAgent, data: dict):
     losses = data['losses']
 
     if total > 50:
-        graph(reward)
+        graph(reward, verbose=True)
         plt.savefig(f'figures/{run_id}_training.png')
         if len(losses) > 10:
             graph(losses.detach().numpy(), xlabel='Replays', ylabel='Loss', window=5)
@@ -69,15 +69,20 @@ def print_progress(agent: DQNAgent, data: dict):
     last_std = round(last100.std(), 1)
     verbose = data['verbose']
 
-    if last_mean > 200:
+    if percent % 2 == 0 and last_mean > 200:
+        print(' ' * 100, end='\r')
         if verbose:
             print('Last 100 episodes average over 200! ', end='')
         agent.save(f'{run_id}_{percent}p', str(round(last_mean, 0)))
+
+    # rar = f'rar: {round(data["rar"], 5)}' if verbose else ''
     # Spaces at the end are to clean up the progress bar
     print(f'Total mean: {mean}, std: {std};  '
           f'Last 100 mean: {last_mean}, std: {last_std};  '
           f'Positive: {positive}/{total}  '
-          f'Steps: {steps}', " " * 20)
+          f'Steps: {steps}  ',
+          # rar,
+          " " * 20)
     if verbose:
         if len(losses) > 1:
             mean = round(losses.mean().item(), 3)

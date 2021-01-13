@@ -51,7 +51,7 @@ class ExperienceBuffer:
             self.episodic_memory.reset()
 
     def ready(self):
-        return self.length > 10000
+        return self.length > 2048
 
     def sample(self):
         """Create a randomized mini-batch using previous experience"""

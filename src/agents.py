@@ -68,7 +68,8 @@ class DQNAgent:
         self.active_model = model
         self.optimizer = self.optim_type(model.parameters(), **self.optim_args)
         # copy active model to begin
-        self.target_model = deepcopy(model)
+        # self.target_model = deepcopy(model)
+        self.target_model = model
         # TODO: DDQN?
 
     def create_model(self):
@@ -119,7 +120,8 @@ class DQNAgent:
 
                 # Update the target to reflect knowledge
                 if step % self.update_target_freq == 0:
-                    self.target_model = deepcopy(self.active_model)
+                    pass
+                    # self.target_model = deepcopy(self.active_model)
                     # if verbose: print(f'\nCopying Active to Target on step {step}')
 
             if self.memory.ready():
@@ -194,12 +196,8 @@ class DQNAgent:
 
     def query(self, buffer, random_actions=True):
         """Ask the agent what action to take given the state"""
-        if random_actions:
-            # Decrement random action rate slightly, but only until it is pretty small, then leave it alone
-            if self.random_action_rate > 0.01:
-                self.random_action_rate *= self.rar_decay
-            if np.random.random() < self.random_action_rate:
-                return np.random.randint(self.num_actions)  # Pick a random action
+        if random_actions and np.random.random() < self.random_action_rate:
+            return np.random.randint(self.num_actions)  # Pick a random action
 
         with torch.no_grad():
             results = self.active_model(buffer.unsqueeze(0))
@@ -238,6 +236,9 @@ class DQNAgent:
         updated_value[torch.arange(size), action_indices] = rewards + non_terminal_values
         # Update the model (leave target alone for now)
         self.train_model(prev_states, updated_value)
+        # Decrement random action rate slightly, but only until it is pretty small, then leave it alone
+        if self.random_action_rate > 0.02:
+            self.random_action_rate *= self.rar_decay
 
     def train_model(self, X, y):
         """
