@@ -1,17 +1,17 @@
 agent:
-  gamma: 0.9992
-  rar: 1.05
-  rar_decay: 0.99997
-  memory_size: 300000
-  minibatch_size: 2048
-  replay_freq: 40
-  target_update: 80000
+  gamma: 0.98
+  rar: 1.0
+  rar_decay: 0.998
+  memory_size: 1000000
+  minibatch_size: 256
+  replay_freq: 1
+  target_update: 5000
   optim_type: torch.optim.adadelta.Adadelta
-  optim_args: 
+  optim_args:
     lr: 1
   device: cuda
 
 model:
-  units: [64, 16] 
+  units: [128, 32]
 
 # criterion:
