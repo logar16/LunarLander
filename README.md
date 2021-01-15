@@ -11,9 +11,9 @@ At the time, I used Keras (and Python 2.7), but I have since grown more fond of 
 so this is essentially a port of that project.  I made several improvements in how the exploration is done and how the results are recorded.
 I also noticed a big speedup in processing as it seems PyTorch/Python 3 is much better at parallel processing than Keras/Python 2.7.
 
-See [a video](https://github.com/logar16/LunarLander/blob/master/docs/Flight%20Demonstration.mp4) of a simple, randomly picked agent configuration trained for 15,000 episodes and flying really good (or just enjoy the shorter clip below).
+See [a video](<https://github.com/logar16/LunarLander/blob/master/docs/400 Episode Model.mp4>) of a simple, randomly picked agent configuration trained for 400 episodes and flying really good (or just enjoy the shorter clip below).
 
-![video](docs/FlightDemo.gif)
+![video](docs/SlidingLander.gif)
 
 Note that the agent is only given 8 inputs (floating point numbers stacked over 3 frames) and has 4 actions it can take.  
 The fact that it can identify where it is and how to land itself is pretty impressive.
@@ -22,7 +22,7 @@ The fact that it can identify where it is and how to land itself is pretty impre
 I provide options for training both a standard linear network or one with RNN (LSTM or GRU) capabilities.
 For as fast convergence as possible, use the linear model, it is simpler and can learn a solid policy quite quickly.
 
-For example, here is one trained with an Adadelta optimizer for 400 episodes (160,000 steps)
+For example, here are results for one trained with an Adadelta optimizer for 400 episodes (160,000 steps)
 
 #### Reward per Episode
 ![adadelta-episodes](figures/Adadelta-ConstantReplay/training400_Ada-1replay(3)_episodes.png)
@@ -39,8 +39,7 @@ Typically once it got an average of 200, the average would oscillate around 200-
 -----
 
 When training a more complex agent (using target and active networks to keep training more stable), I found that the model would initially learn how to land the craft, but then it would learn how to fly and not try to land anymore.
-Eventually it would realize it needed to combine both skills in order to score points and then it would perform a solid 200 points from then on.
-The simpler agent, is more volatile, but it does not seem to undergo the same struggle between flying to avoid crashing, and landing to score points.
+Eventually it would realize it needed to combine both skills in order to score points and then it would perform a solid 200 points from then on.  It took several thousand steps to achieve these results.  I think it is a more robust flier, but it comes with much more significant training costs. The simpler agent, is more volatile, but it does not seem to undergo the same struggle between flying to avoid crashing, and landing to score points, and it trains much much faster.
 
 ![stable-learner](figures/DDQN/replay10-update30k_training.png)
 
