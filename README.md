@@ -4,7 +4,7 @@
 This is adapted from a project I did for my master's degree in the GA Tech OMSCS program.
 The goal was to solve the [Lunar Lander (v2) environment](http://gym.openai.com/envs/LunarLander-v2/) provided with the OpenAI Gym.
 I was very excited about the semi-recent advancement of DeepMind's Deep Q-Networks, 
-and so I did a custom implementation built only using the DQN paper "Human-level control through deep reinforcement learning." 
+and so I did a custom implementation built only using the DQN paper ["Human-level control through deep reinforcement learning."](http://files.davidqiu.com//research/nature14236.pdf) 
 for reference (Mnih Volodymyr et al. 2015).
 
 At the time, I used Keras (and Python 2.7), but I have since grown more fond of PyTorch (and Python 3), 
